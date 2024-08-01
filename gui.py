@@ -78,25 +78,33 @@ class FileLoaderApp:
 
         sub_tab_control.pack(expand=1, fill='both')
 
-        # Main Log Console with Scrollbar
+        # Main Log Console with Scrollbars
         main_console_frame = tk.Frame(main_sub_tab)
         main_console_frame.pack(expand=True, fill='both', padx=10, pady=10)
         self.log_console = tk.Text(main_console_frame, height=20, state='disabled', wrap='none')
         self.log_console.pack(side='left', expand=True, fill='both')
 
-        main_scrollbar = tk.Scrollbar(main_console_frame, command=self.log_console.yview)
-        main_scrollbar.pack(side='right', fill='y')
-        self.log_console.config(yscrollcommand=main_scrollbar.set)
+        main_v_scrollbar = tk.Scrollbar(main_console_frame, command=self.log_console.yview)
+        main_v_scrollbar.pack(side='right', fill='y')
+        self.log_console.config(yscrollcommand=main_v_scrollbar.set)
 
-        # Rejected Log Console with Scrollbar
+        main_h_scrollbar = tk.Scrollbar(main_console_frame, command=self.log_console.xview, orient='horizontal')
+        main_h_scrollbar.pack(side='bottom', fill='x')
+        self.log_console.config(xscrollcommand=main_h_scrollbar.set)
+
+        # Rejected Log Console with Scrollbars
         rejected_console_frame = tk.Frame(rejected_sub_tab)
         rejected_console_frame.pack(expand=True, fill='both', padx=10, pady=10)
         self.rejected_log_console = tk.Text(rejected_console_frame, height=20, state='disabled', wrap='none')
         self.rejected_log_console.pack(side='left', expand=True, fill='both')
 
-        rejected_scrollbar = tk.Scrollbar(rejected_console_frame, command=self.rejected_log_console.yview)
-        rejected_scrollbar.pack(side='right', fill='y')
-        self.rejected_log_console.config(yscrollcommand=rejected_scrollbar.set)
+        rejected_v_scrollbar = tk.Scrollbar(rejected_console_frame, command=self.rejected_log_console.yview)
+        rejected_v_scrollbar.pack(side='right', fill='y')
+        self.rejected_log_console.config(yscrollcommand=rejected_v_scrollbar.set)
+
+        rejected_h_scrollbar = tk.Scrollbar(rejected_console_frame, command=self.rejected_log_console.xview, orient='horizontal')
+        rejected_h_scrollbar.pack(side='bottom', fill='x')
+        self.rejected_log_console.config(xscrollcommand=rejected_h_scrollbar.set)
 
         # Clear Log and Start Logging Buttons
         buttons_frame = tk.Frame(main_sub_tab)

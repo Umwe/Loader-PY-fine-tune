@@ -3,7 +3,7 @@
 block_cipher = None
 
 a = Analysis(
-    ['gui.py'],
+    ['main.py'],
     pathex=['.'],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='your_app',
+    name='Loader',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -40,5 +40,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='FileLoader',
+    name='Loader',
 )
