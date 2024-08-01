@@ -7,14 +7,16 @@ def connect_to_db(server, database, auth_type, username=None, password=None):
         connection_string = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password};"
     return pyodbc.connect(connection_string)
 
-def call_stored_procedure(connection, stored_procedure, file_path):
+def call_stored_procedure(connection, stored_procedure, file_name, file_path):
     cursor = connection.cursor()
+    error_msg = ""
     try:
-        cursor.execute(f"EXEC {stored_procedure} ?", file_path)
+        cursor.execute(f"EXEC {stored_procedure} @FileName=?, @FilePath=?, @ErrorMsg=?", (file_name, file_path, error_msg))
         connection.commit()
-        result = cursor.fetchone()
-        status = result[0]  # Assuming the stored procedure returns status as the first column
-        message = result[1]  # Assuming the stored procedure returns message as the second column
+        error_msg = cursor.getvalue("@ErrorMsg")
+        status = int(error_msg[0])
+        message = error_msg[1:]
         return status, message
     except Exception as e:
+        print(f"Error calling stored procedure: {e}")
         return -1, str(e)

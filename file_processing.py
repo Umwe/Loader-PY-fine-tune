@@ -2,7 +2,6 @@ import os
 import shutil
 import time
 from database import connect_to_db, call_stored_procedure
-from datetime import datetime
 
 def process_files(input_path, output_path, load_tmp_files, delete_tmp_files, delete_processed_files, server, database, stored_procedure, auth_type, username, password, log, stop_requested, batch_size=1000, log_rejected=None):
     while not stop_requested():
@@ -30,56 +29,41 @@ def process_files(input_path, output_path, load_tmp_files, delete_tmp_files, del
 
         if files_to_process:
             log(f"Read {len(files_to_process)} files.")
-            for i in range(3, 0, -1):
-                log(f"Calling stored procedure in {i} seconds...")
-                time.sleep(1)  # Simulate countdown
+            time.sleep(3)  # Simulate countdown
 
             success_count = 0
             exist_count = 0
-            fail_count = 0
+            failed_count = 0
 
-            for index, file_name in enumerate(files_to_process, start=1):
+            for i, file_name in enumerate(files_to_process, 1):
                 file_path = os.path.join(input_path, file_name)
-                status, message = call_stored_procedure(connection, stored_procedure, file_path)
+                status, message = call_stored_procedure(connection, stored_procedure, file_name, file_path)
 
                 if status == 0:
                     success_count += 1
-                    if delete_processed_files:
-                        os.remove(file_path)
-                    else:
-                        shutil.move(file_path, output_path)
                 elif status == 1:
                     exist_count += 1
-                    if delete_processed_files:
-                        os.remove(file_path)
-                    else:
-                        shutil.move(file_path, output_path)
                 else:
-                    fail_count += 1
+                    failed_count += 1
                     if log_rejected:
                         log_rejected(f"File {file_name}: {message}")
 
-                # Update progress
-                log(f"Processed {index} out of {len(files_to_process)} files.", overwrite=True)
+                log(f"Processed files: {i} out of {len(files_to_process)}", overwrite=True)
 
-            batch_summary = (
-                f"Batch Summary:\n"
-                f"Total files processed: {len(files_to_process)}\n"
-                f"Success: {success_count}\n"
-                f"Already exist: {exist_count}\n"
-                f"Failed: {fail_count}\n"
-                f"Processed on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                "----------------------------------------"
-            )
-            log(batch_summary)
-            
-            rejected_summary = (
-                f"Rejected Batch Summary:\n"
-                f"Processed on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                "----------------------------------------"
-            )
+                if status == 0 or status == 1:
+                    if delete_processed_files:
+                        os.remove(file_path)
+                        log(f"Deleted processed file: {file_name}")
+                    else:
+                        shutil.move(file_path, output_path)
+                        log(f"Moved file: {file_name}")
+                else:
+                    log(f"File {file_name} was corrupted and not loaded.")
+
+            summary_message = f"Batch Summary:\nTotal files processed: {len(files_to_process)}\nSuccess: {success_count}\nAlready exist: {exist_count}\nFailed: {failed_count}\nProcessed on: {time.strftime('%Y-%m-%d %H:%M:%S')}\n----------------------------------------"
+            log(summary_message)
             if log_rejected:
-                log_rejected(rejected_summary)
+                log_rejected(summary_message)
         else:
             log("No files to process.")
 

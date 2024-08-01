@@ -138,23 +138,25 @@ class FileLoaderApp:
         self.database_name_entry = ttk.Entry(self.config_db_tab, width=50)
         self.database_name_entry.grid(row=1, column=1, padx=5, pady=5)
 
-        ttk.Label(self.config_db_tab, text="Stored Procedure Name:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(self.config_db_tab, text="Stored Procedure:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
         self.stored_procedure_entry = ttk.Entry(self.config_db_tab, width=50)
         self.stored_procedure_entry.grid(row=2, column=1, padx=5, pady=5)
 
-        self.auth_type = tk.StringVar(value="SQL Server Authentication")
         ttk.Label(self.config_db_tab, text="Authentication Type:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        ttk.OptionMenu(self.config_db_tab, self.auth_type, "SQL Server Authentication", "SQL Server Authentication", "Windows Authentication", command=self.toggle_auth).grid(row=3, column=1, padx=5, pady=5, sticky="w")
+        self.auth_type = tk.StringVar()
+        self.auth_type.set("SQL Server Authentication")
+        auth_type_menu = ttk.OptionMenu(self.config_db_tab, self.auth_type, "SQL Server Authentication", "SQL Server Authentication", "Windows Authentication", command=self.toggle_auth)
+        auth_type_menu.grid(row=3, column=1, padx=5, pady=5)
 
-        self.sql_auth_frame = ttk.Frame(self.config_db_tab)
-        self.sql_auth_frame.grid(row=4, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        self.sql_auth_frame = tk.Frame(self.config_db_tab)
+        self.sql_auth_frame.grid(row=4, column=0, columnspan=3, sticky='w')
 
         ttk.Label(self.sql_auth_frame, text="Username:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         self.username_entry = ttk.Entry(self.sql_auth_frame, width=50)
         self.username_entry.grid(row=0, column=1, padx=5, pady=5)
 
         ttk.Label(self.sql_auth_frame, text="Password:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.password_entry = ttk.Entry(self.sql_auth_frame, width=50, show="*")
+        self.password_entry = ttk.Entry(self.sql_auth_frame, width=50, show='*')
         self.password_entry.grid(row=1, column=1, padx=5, pady=5)
 
         ttk.Button(self.config_db_tab, text="Save DB Config", command=self.handle_save_db_config).grid(row=5, column=1, padx=5, pady=5, sticky="e")
@@ -163,9 +165,8 @@ class FileLoaderApp:
         ttk.Label(self.config_others_tab, text="Batch Size:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         self.batch_size_entry = ttk.Entry(self.config_others_tab, width=20)
         self.batch_size_entry.grid(row=0, column=1, padx=5, pady=5)
-        self.batch_size_entry.insert(0, str(self.batch_size))
 
-        ttk.Button(self.config_others_tab, text="Set as Default", command=self.set_default_batch_size).grid(row=1, column=1, padx=5, pady=5, sticky="e")
+        ttk.Button(self.config_others_tab, text="Set Default Batch Size", command=self.set_default_batch_size).grid(row=1, column=1, padx=5, pady=5, sticky="e")
 
         ttk.Button(self.config_others_tab, text="Save Batch Size", command=self.handle_save_batch_size).grid(row=2, column=1, padx=5, pady=5, sticky="e")
 
@@ -338,34 +339,13 @@ class FileLoaderApp:
         self.log_console.configure(state='disabled')
         self.log_console.see(tk.END)
 
-    def log_rejected(self, message):
+    def log_rejected(self, message, overwrite=False):
         self.rejected_log_console.configure(state='normal')
+        if overwrite:
+            self.rejected_log_console.delete("end-2l", "end-1l")
         self.rejected_log_console.insert(tk.END, message + "\n")
         self.rejected_log_console.configure(state='disabled')
         self.rejected_log_console.see(tk.END)
-
-    def load_config(self):
-        if os.path.exists("config.json"):
-            with open("config.json", "r") as file:
-                config = json.load(file)
-                self.input_path_entry.insert(0, config.get("input_path", ""))
-                self.output_path_entry.insert(0, config.get("output_path", ""))
-                self.server_url_entry.insert(0, config.get("server_url", ""))
-                self.database_name_entry.insert(0, config.get("database_name", ""))
-                self.stored_procedure_entry.insert(0, config.get("stored_procedure", ""))
-                self.auth_type.set(config.get("auth_type", "SQL Server Authentication"))
-                self.username_entry.insert(0, config.get("username", ""))
-                self.password_entry.insert(0, config.get("password", ""))
-                self.check_box_manager.set_checkbox_states({
-                    "load_tmp_files": config.get("load_tmp_files", False),
-                    "delete_tmp_extension": config.get("delete_tmp_files", False),
-                    "delete_processed_files": config.get("delete_processed_files", False)
-                })
-                self.batch_size = config.get("batch_size", 1000)
-                self.batch_size_entry.delete(0, tk.END)
-                self.batch_size_entry.insert(0, str(self.batch_size))
-                self.toggle_auth(self.auth_type.get())
-                self.log("Configuration loaded.")
 
     def save_config(self):
         config = {
@@ -377,16 +357,33 @@ class FileLoaderApp:
             "auth_type": self.auth_type.get(),
             "username": self.username_entry.get(),
             "password": self.password_entry.get(),
-            "load_tmp_files": self.check_box_manager.get_checkbox_states()["load_tmp_files"],
-            "delete_tmp_files": self.check_box_manager.get_checkbox_states()["delete_tmp_extension"],
-            "delete_processed_files": self.check_box_manager.get_checkbox_states()["delete_processed_files"],
-            "batch_size": self.batch_size
+            "batch_size": self.batch_size,
+            "check_box_states": self.check_box_manager.get_checkbox_states()
         }
-        with open("config.json", "w") as file:
-            json.dump(config, file)
-        self.log("Configuration saved.")
+        with open('config.json', 'w') as config_file:
+            json.dump(config, config_file, indent=4)
 
-    def on_closing(self):
-        self.save_config()
-        self.root.destroy()
-        self.log("Application closed.")
+    def load_config(self):
+        if os.path.exists('config.json'):
+            with open('config.json', 'r') as config_file:
+                config = json.load(config_file)
+                self.input_path_entry.insert(0, config.get("input_path", ""))
+                self.output_path_entry.insert(0, config.get("output_path", ""))
+                self.server_url_entry.insert(0, config.get("server_url", ""))
+                self.database_name_entry.insert(0, config.get("database_name", ""))
+                self.stored_procedure_entry.insert(0, config.get("stored_procedure", ""))
+                self.auth_type.set(config.get("auth_type", "SQL Server Authentication"))
+                self.username_entry.insert(0, config.get("username", ""))
+                self.password_entry.insert(0, config.get("password", ""))
+                self.batch_size = config.get("batch_size", 1000)
+                self.batch_size_entry.insert(0, str(self.batch_size))
+                self.check_box_manager.set_checkbox_states(config.get("check_box_states", {}))
+                self.toggle_auth(self.auth_type.get())
+                self.log("Configuration loaded.")
+        else:
+            self.log("No configuration file found. Using default settings.")
+
+if __name__ == "__main__":
+    root = Tk()
+    app = FileLoaderApp(root)
+    root.mainloop()
