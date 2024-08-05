@@ -331,19 +331,35 @@ class FileLoaderApp:
         self.log("Exit button clicked.")
         self.root.quit()
 
-    def log(self, message, overwrite=False):
+    def log(self, message, color=None, overwrite=False):
         self.log_console.configure(state='normal')
         if overwrite:
             self.log_console.delete("end-2l", "end-1l")
-        self.log_console.insert(tk.END, message + "\n")
+        tag = None
+        if color == "green":
+            tag = "green"
+        elif color == "yellow":
+            tag = "yellow"
+        elif color == "red":
+            tag = "red"
+        if tag:
+            self.log_console.insert(tk.END, message + "\n", tag)
+        else:
+            self.log_console.insert(tk.END, message + "\n")
         self.log_console.configure(state='disabled')
         self.log_console.see(tk.END)
 
-    def log_rejected(self, message, overwrite=False):
+    def log_rejected(self, message, color=None, overwrite=False):
         self.rejected_log_console.configure(state='normal')
         if overwrite:
             self.rejected_log_console.delete("end-2l", "end-1l")
-        self.rejected_log_console.insert(tk.END, message + "\n")
+        tag = None
+        if color == "red":
+            tag = "red"
+        if tag:
+            self.rejected_log_console.insert(tk.END, message + "\n", tag)
+        else:
+            self.rejected_log_console.insert(tk.END, message + "\n")
         self.rejected_log_console.configure(state='disabled')
         self.rejected_log_console.see(tk.END)
 

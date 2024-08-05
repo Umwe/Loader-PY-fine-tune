@@ -31,42 +31,25 @@ def process_files(input_path, output_path, load_tmp_files, delete_tmp_files, del
             log(f"Read {len(files_to_process)} files.")
             time.sleep(3)  # Simulate countdown
 
-            success_count = 0
-            exist_count = 0
-            failed_count = 0
-
-            for i, file_name in enumerate(files_to_process, 1):
+            for file_name in files_to_process:
                 file_path = os.path.join(input_path, file_name)
                 status, message = call_stored_procedure(connection, stored_procedure, file_name, file_path)
-
-                if status == 0:
-                    success_count += 1
-                elif status == 1:
-                    exist_count += 1
-                else:
-                    failed_count += 1
-                    if log_rejected:
-                        log_rejected(f"File {file_name}: {message}")
-
-                log(f"Processed files: {i} out of {len(files_to_process)}", overwrite=True)
+                color = "green" if status == 0 else "yellow" if status == 1 else "red"
+                log(f"{time.strftime('%Y-%m-%d %H:%M:%S')} FILE: {file_path} STATUS: {status} MESSAGE: {message}", color=color)
 
                 if status == 0 or status == 1:
                     if delete_processed_files:
                         os.remove(file_path)
-                        log(f"Deleted processed file: {file_name}")
+                        log(f"Deleted processed file: {file_name}", status=str(status))
                     else:
                         shutil.move(file_path, output_path)
-                        log(f"Moved file: {file_name}")
+                        log(f"Moved file: {file_name}", status=str(status))
                 else:
-                    log(f"File {file_name} was corrupted and not loaded.")
-
-            summary_message = f"Batch Summary:\nTotal files processed: {len(files_to_process)}\nSuccess: {success_count}\nAlready exist: {exist_count}\nFailed: {failed_count}\nProcessed on: {time.strftime('%Y-%m-%d %H:%M:%S')}\n----------------------------------------"
-            log(summary_message)
-            if log_rejected:
-                log_rejected(summary_message)
+                    log_rejected(f"{time.strftime('%Y-%m-%d %H:%M:%S')} FILE: {file_path} STATUS: {status} MESSAGE: {message}", color="red")
+                log("---------------------------------------------------------")
         else:
             log("No files to process.")
-
+        
         time.sleep(30)  # Wait before next batch
 
         if stop_requested():

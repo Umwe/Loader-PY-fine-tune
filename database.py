@@ -9,13 +9,13 @@ def connect_to_db(server, database, auth_type, username=None, password=None):
 
 def call_stored_procedure(connection, stored_procedure, file_name, file_path):
     cursor = connection.cursor()
-    error_msg = ""
+    error_msg = ''
     try:
-        cursor.execute(f"EXEC {stored_procedure} @FileName=?, @FilePath=?, @ErrorMsg=?", (file_name, file_path, error_msg))
+        cursor.execute(f"EXEC {stored_procedure} ?, ?, ?", file_name, file_path, error_msg)
         connection.commit()
-        error_msg = cursor.getvalue("@ErrorMsg")
-        status = int(error_msg[0])
-        message = error_msg[1:]
+        cursor.nextset()
+        status = cursor.fetchone()[0]
+        message = cursor.fetchone()[1]
         return status, message
     except Exception as e:
         print(f"Error calling stored procedure: {e}")

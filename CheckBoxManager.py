@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 
 class CheckBoxManager:
     def __init__(self, parent, log_callback, save_config_callback):
@@ -18,10 +19,13 @@ class CheckBoxManager:
         self.delete_processed_files_cb = tk.Checkbutton(parent, text="Delete Processed Files", variable=self.delete_processed_files_var, command=self.save_and_log_delete_processed_files)
         self.delete_processed_files_cb.pack(side='left', padx=5)
 
+    def show_warning_dialog(self, message):
+        messagebox.showwarning("Warning", message)
+
     def save_and_log_load_tmp_files(self):
         if self.load_tmp_files_var.get() and self.delete_tmp_extension_var.get():
             self.delete_tmp_extension_var.set(False)
-            self.log("You cannot select both 'Load .tmp Files' and 'Delete .tmp Files'. Please deselect one.")
+            self.show_warning_dialog("You cannot select both 'Load .tmp Files' and 'Delete .tmp Files'. Please deselect one.")
         else:
             self.save_config()
             if self.load_tmp_files_var.get():
@@ -32,7 +36,7 @@ class CheckBoxManager:
     def save_and_log_delete_tmp_files(self):
         if self.delete_tmp_extension_var.get() and self.load_tmp_files_var.get():
             self.load_tmp_files_var.set(False)
-            self.log("You cannot select both 'Load .tmp Files' and 'Delete .tmp Files'. Please deselect one.")
+            self.show_warning_dialog("You cannot select both 'Load .tmp Files' and 'Delete .tmp Files'. Please deselect one.")
         else:
             self.save_config()
             if self.delete_tmp_extension_var.get():
