@@ -9,14 +9,50 @@ def connect_to_db(server, database, auth_type, username=None, password=None):
 
 def call_stored_procedure(connection, stored_procedure, file_name, file_path):
     cursor = connection.cursor()
-    error_msg = ''
+    sql = f"""
+    DECLARE @ErrorMsg NVARCHAR(4000);
+
+    EXEC {stored_procedure}
+        @FileName = ?,
+        @FilePath = ?,
+        @ErrorMsg = @ErrorMsg OUTPUT;
+
+    SELECT @ErrorMsg AS ErrorMsg;
+    """
+
     try:
-        cursor.execute(f"EXEC {stored_procedure} ?, ?, ?", file_name, file_path, error_msg)
+        cursor.execute(sql, file_name, file_path)
+        error_msg = None
+
+        while True:
+            if cursor.description:
+                row = cursor.fetchone()
+                if row:
+                    if 'ErrorMsg' in cursor.description[0][0]:
+                        error_msg = row.ErrorMsg
+            if not cursor.nextset():
+                break
+
         connection.commit()
-        cursor.nextset()
-        status = cursor.fetchone()[0]
-        message = cursor.fetchone()[1]
-        return status, message
-    except Exception as e:
-        print(f"Error calling stored procedure: {e}")
+
+        if error_msg:
+            status_code = error_msg[0]
+            return parse_error_msg(status_code, error_msg)
+        else:
+            return -1, 'No error message returned.'
+
+    except pyodbc.Error as e:
         return -1, str(e)
+
+    finally:
+        cursor.close()
+
+def parse_error_msg(status_code, error_msg):
+    if status_code == '0':
+        return 0, error_msg[1:]
+    elif status_code == '1':
+        return 1, error_msg[1:]
+    elif status_code == '-':
+        return -1, error_msg[1:]
+    else:
+        return -1, 'Unknown error'

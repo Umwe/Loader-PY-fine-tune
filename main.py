@@ -35,7 +35,8 @@ def main():
             config["password"],
             app.log,
             lambda: app.stop_requested,
-            app.get_batch_size()
+            app.get_batch_size(),
+            app.log_rejected
         ), daemon=True).start()
 
     root.mainloop()

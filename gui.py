@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import json
 import os
 import threading
+from datetime import datetime
 from CheckBoxManager import CheckBoxManager
 from file_processing import process_files
 
@@ -331,35 +332,21 @@ class FileLoaderApp:
         self.log("Exit button clicked.")
         self.root.quit()
 
-    def log(self, message, color=None, overwrite=False):
+    def log(self, message, color='black', overwrite=False):
         self.log_console.configure(state='normal')
         if overwrite:
             self.log_console.delete("end-2l", "end-1l")
-        tag = None
-        if color == "green":
-            tag = "green"
-        elif color == "yellow":
-            tag = "yellow"
-        elif color == "red":
-            tag = "red"
-        if tag:
-            self.log_console.insert(tk.END, message + "\n", tag)
-        else:
-            self.log_console.insert(tk.END, message + "\n")
+        self.log_console.insert(tk.END, message + "\n", ('color',))
+        self.log_console.tag_configure('color', foreground=color)
         self.log_console.configure(state='disabled')
         self.log_console.see(tk.END)
 
-    def log_rejected(self, message, color=None, overwrite=False):
+    def log_rejected(self, message, overwrite=False):
         self.rejected_log_console.configure(state='normal')
         if overwrite:
             self.rejected_log_console.delete("end-2l", "end-1l")
-        tag = None
-        if color == "red":
-            tag = "red"
-        if tag:
-            self.rejected_log_console.insert(tk.END, message + "\n", tag)
-        else:
-            self.rejected_log_console.insert(tk.END, message + "\n")
+        self.rejected_log_console.insert(tk.END, message + "\n", ('color',))
+        self.rejected_log_console.tag_configure('color', foreground='red')
         self.rejected_log_console.configure(state='disabled')
         self.rejected_log_console.see(tk.END)
 
