@@ -36,8 +36,7 @@ def call_stored_procedure(connection, stored_procedure, file_name, file_path):
         connection.commit()
 
         if error_msg:
-            status_code = error_msg[0]
-            return parse_error_msg(status_code, error_msg)
+            return parse_error_msg(error_msg)
         else:
             return -1, 'No error message returned.'
 
@@ -47,12 +46,12 @@ def call_stored_procedure(connection, stored_procedure, file_name, file_path):
     finally:
         cursor.close()
 
-def parse_error_msg(status_code, error_msg):
-    if status_code == '0':
-        return 0, error_msg[1:]
-    elif status_code == '1':
-        return 1, error_msg[1:]
-    elif status_code == '-':
-        return -1, error_msg[1:]
+def parse_error_msg(error_msg):
+    if error_msg.startswith('0'):
+        return 0, error_msg
+    elif error_msg.startswith('1'):
+        return 1, error_msg
+    elif error_msg.startswith('-'):
+        return -1, error_msg
     else:
         return -1, 'Unknown error'

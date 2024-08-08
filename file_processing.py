@@ -24,9 +24,9 @@ def process_files(input_path, output_path, load_tmp_files, delete_tmp_files, del
         processing_time = end_time - start_time
         
         if status == 0:
-            log(f"{datetime.now()} FILE: {file_name} STATUS: LOADED SUCCESSFULLY in {processing_time}. TABLE: {message.split()[-1]}", 'green')
+            log(f"{datetime.now()} FILE: {file_name} STATUS: LOADED SUCCESSFULLY in {processing_time}. TABLE: {message}", 'green')
         elif status == 1:
-            log(f"{datetime.now()} FILE: {file_name} STATUS: ALREADY EXISTS ({message.split()[-1]})", 'yellow')
+            log(f"{datetime.now()} FILE: {file_name} STATUS: ALREADY EXISTS ({message})", 'yellow')
         else:
             log(f"{datetime.now()} FILE: {file_name} PROCESSING FAILED: {message}", 'red')
             log_rejected(f"{datetime.now()} FILE: {file_name} PROCESSING FAILED: {message}")
