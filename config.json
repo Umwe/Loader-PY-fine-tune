@@ -9,7 +9,7 @@
     "password": "",
     "batch_size": 10,
     "process_name": "GGSN",
-    "bg_color": "#008000",
+    "bg_color": "#ff8080",
     "check_box_states": {
         "load_tmp_files": true,
         "delete_tmp_extension": false,
