@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import json
 import os
 import threading
+import time  # Make sure to import the time module
 from datetime import datetime
 from CheckBoxManager import CheckBoxManager
 from file_processing import process_files
@@ -16,9 +17,14 @@ class FileLoaderApp:
         self.logging_active = False
         self.stop_requested = False
         self.batch_size = 1000  # Default batch size
+        self.current_file_count = 0  # Track the current file count
 
         self.create_widgets()
         self.load_config()
+
+        # Start the background thread to keep the file count updated
+        self.file_count_thread = threading.Thread(target=self.monitor_file_count, daemon=True)
+        self.file_count_thread.start()
 
     def create_widgets(self):
         # Header
@@ -189,6 +195,12 @@ class FileLoaderApp:
         self.exit_button = ttk.Button(bottom_frame, text="Exit", command=self.handle_exit)
         self.exit_button.pack(side='left', padx=5)
 
+        # Label to display the current number of files in the input directory
+        self.file_count_label = tk.Label(bottom_frame, text="Total files: 0")
+        self.file_count_label.pack(side='left', padx=5, pady=5)
+
+        self.update_file_count()  # Initial count of the files
+
     def toggle_auth(self, value):
         if value == "Windows Authentication":
             self.sql_auth_frame.grid_remove()
@@ -201,8 +213,8 @@ class FileLoaderApp:
         if input_path:
             self.input_path_entry.delete(0, tk.END)
             self.input_path_entry.insert(0, input_path)
+            self.update_file_count()  # Update file count when a new input path is selected
             self.log(f"Input path set to {input_path}.")
-            print(f"Input path set to {input_path}.")
 
     def browse_output_path(self):
         output_path = filedialog.askdirectory()
@@ -210,7 +222,6 @@ class FileLoaderApp:
             self.output_path_entry.delete(0, tk.END)
             self.output_path_entry.insert(0, output_path)
             self.log(f"Output path set to {output_path}.")
-            print(f"Output path set to {output_path}.")
 
     def handle_clear_log(self):
         self.log_console.configure(state='normal')
@@ -229,7 +240,7 @@ class FileLoaderApp:
             self.stop_requested = False
             self.start_logging()
         else:
-            self.log("Stop requested. Waiting for the current batch to finish...")
+            self.log("Stop requested. Waiting for the current action to finish...")
             self.stop_requested = True
 
     def start_logging(self):
@@ -244,12 +255,12 @@ class FileLoaderApp:
             "stored_procedure": self.stored_procedure_entry.get(),
             "auth_type": self.auth_type.get(),
             "username": self.username_entry.get(),
-            "password": self.password_entry.get()
+            "password": self.password_entry.get(),
+            "batch_size": self.get_batch_size()
         }
-        threading.Thread(target=self.process_files_thread, args=(config,)).start()
+        threading.Thread(target=self.process_files_thread, args=(config,), daemon=True).start()
 
     def process_files_thread(self, config):
-        batch_size = self.get_batch_size()
         process_files(
             config["input_path"],
             config["output_path"],
@@ -264,9 +275,58 @@ class FileLoaderApp:
             config["password"],
             self.log,
             lambda: self.stop_requested,
-            batch_size,
-            self.log_rejected
+            config["batch_size"],
+            self.log_rejected,
+            self.update_file_count  # Pass the update_file_count method to refresh the file count
         )
+        self.logging_active = False  # Mark the process as completed
+        self.start_logging_button.config(text="Start Logging")  # Reset button text after stopping
+
+    def handle_exit(self):
+        if self.logging_active and not self.stop_requested:
+            response = messagebox.askyesnocancel(
+                "Warning",
+                "The process is currently running. Exiting now might corrupt the current process. Do you want to stop the process first?"
+            )
+            if response is None:  # Cancel
+                return
+            elif response:  # Yes, stop the process
+                self.stop_requested = True
+                self.logging_active = False
+                self.start_logging_button.config(text="Start Logging")
+                messagebox.showinfo("Process Stopped", "The process is being stopped. The application will close once the current process is finished.")
+                # Start a thread to monitor the process and close the app when done
+                threading.Thread(target=self.wait_for_process_to_end_and_exit, daemon=True).start()
+            else:  # No, exit without stopping
+                self.root.quit()
+        else:
+            self.root.quit()
+
+    def wait_for_process_to_end_and_exit(self):
+        while self.logging_active:  # Wait until the process is fully stopped
+            time.sleep(1)  # Check every second
+        self.root.quit()  # Close the application after stopping
+
+    def update_file_count(self):
+        """Update the Label with the current number of files in the input directory."""
+        input_path = self.input_path_entry.get()
+        if os.path.exists(input_path):
+            file_count = len(os.listdir(input_path))
+            self.file_count_label.config(text=f"Total files: {file_count}")
+            self.current_file_count = file_count  # Update the current file count
+        else:
+            self.file_count_label.config(text="Total files: 0")
+            self.current_file_count = 0
+
+    def monitor_file_count(self):
+        """Background thread to monitor and update the file count in real-time."""
+        while True:
+            input_path = self.input_path_entry.get()
+            if os.path.exists(input_path):
+                new_file_count = len(os.listdir(input_path))
+                if new_file_count != self.current_file_count:
+                    self.update_file_count()
+            time.sleep(2)  # Check every 2 seconds
 
     def handle_save_paths(self):
         input_path = self.input_path_entry.get()
@@ -277,6 +337,7 @@ class FileLoaderApp:
             return
 
         self.save_config()
+        self.update_file_count()  # Update the file count when paths are saved
         self.log("Paths configuration saved successfully.")
 
     def handle_save_db_config(self):
@@ -328,10 +389,6 @@ class FileLoaderApp:
         self.log("Stop button clicked.")
         self.logging_active = False
 
-    def handle_exit(self):
-        self.log("Exit button clicked.")
-        self.root.quit()
-
     def log(self, message, color='black', overwrite=False):
         self.log_console.configure(state='normal')
         if overwrite:
@@ -382,11 +439,12 @@ class FileLoaderApp:
                 self.batch_size_entry.insert(0, str(self.batch_size))
                 self.check_box_manager.set_checkbox_states(config.get("check_box_states", {}))
                 self.toggle_auth(self.auth_type.get())
+                self.update_file_count()  # Update file count on load
                 self.log("Configuration loaded.")
         else:
             self.log("No configuration file found. Using default settings.")
 
 if __name__ == "__main__":
-    root = Tk()
+    root = tk.Tk()
     app = FileLoaderApp(root)
     root.mainloop()
