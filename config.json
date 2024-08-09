@@ -8,9 +8,11 @@
     "username": "",
     "password": "",
     "batch_size": 10,
+    "process_name": "GGSN",
+    "bg_color": "#008000",
     "check_box_states": {
         "load_tmp_files": true,
         "delete_tmp_extension": false,
-        "delete_processed_files": false
+        "delete_processed_files": true
     }
 }

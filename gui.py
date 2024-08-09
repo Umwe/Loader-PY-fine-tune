@@ -1,9 +1,12 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, colorchooser
 import json
 import os
 import threading
 import time
+import psutil
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime
 from CheckBoxManager import CheckBoxManager
 from file_processing import process_files
@@ -18,6 +21,9 @@ class FileLoaderApp:
         self.stop_requested = False
         self.batch_size = 1000  # Default batch size
         self.current_file_count = 0  # Track the current file count
+        self.cpu_usage_data = [0] * 60  # Initialize CPU usage data for the graph
+        self.app_running = True  # Flag to control the running state of the app
+        self.bg_color = None  # Variable to store chosen color
 
         self.create_widgets()
         self.load_config()
@@ -26,12 +32,16 @@ class FileLoaderApp:
         self.file_count_thread = threading.Thread(target=self.monitor_file_count, daemon=True)
         self.file_count_thread.start()
 
+        # Start the CPU monitoring thread
+        self.cpu_monitor_thread = threading.Thread(target=self.update_cpu_usage, daemon=True)
+        self.cpu_monitor_thread.start()
+
     def create_widgets(self):
-        # Header
-        header_frame = tk.Frame(self.root, bg='lightgreen', height=100)
-        header_frame.pack(fill='x')
-        header_label = tk.Label(header_frame, text="GGSN LOADER7 (GGSN CDRS LOADER)", bg='lightgreen', font=("Arial", 20, "bold"))
-        header_label.pack(expand=True)
+        # Header (to be updated with process name and background color)
+        self.header_frame = tk.Frame(self.root, bg='lightgreen', height=100)
+        self.header_frame.pack(fill='x')
+        self.header_label = tk.Label(self.header_frame, text="GGSN LOADER7 (GGSN CDRS LOADER)", bg='lightgreen', font=("Arial", 20, "bold"))
+        self.header_label.pack(expand=True)
 
         # Tab Control
         tab_control = ttk.Notebook(self.root)
@@ -72,6 +82,9 @@ class FileLoaderApp:
 
         # Bottom Controls
         self.create_bottom_controls()
+
+        # Update process display after creating widgets
+        self.update_process_display()
 
     def create_main_tab_widgets(self):
         # Sub Tabs in Main Tab
@@ -201,8 +214,34 @@ class FileLoaderApp:
         self.batch_size_entry.grid(row=0, column=1, padx=5, pady=5)
 
         ttk.Button(self.config_others_tab, text="Set Default Batch Size", command=self.set_default_batch_size).grid(row=1, column=1, padx=5, pady=5, sticky="e")
-
         ttk.Button(self.config_others_tab, text="Save Batch Size", command=self.handle_save_batch_size).grid(row=2, column=1, padx=5, pady=5, sticky="e")
+
+        # Add Process Name input
+        ttk.Label(self.config_others_tab, text="Process Name:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        self.process_name_entry = ttk.Entry(self.config_others_tab, width=50)
+        self.process_name_entry.grid(row=3, column=1, padx=5, pady=5)
+
+        # Add Color Picker for Background Color
+        ttk.Label(self.config_others_tab, text="Process Background Color:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        self.bg_color_button = tk.Button(self.config_others_tab, text="Choose Color", command=self.choose_bg_color)
+        self.bg_color_button.grid(row=4, column=1, padx=5, pady=5, sticky="w")
+
+        # Add Save Button to save the configurations
+        ttk.Button(self.config_others_tab, text="Save Config", command=self.save_config).grid(row=5, column=1, padx=5, pady=5, sticky="e")
+
+
+    def choose_bg_color(self):
+        color_code = colorchooser.askcolor(title="Choose background color")
+        if color_code:
+            self.bg_color = color_code[1]
+            self.bg_color_button.config(bg=self.bg_color)
+
+    def update_process_display(self):
+        process_name = self.process_name_entry.get().strip() or self.stored_procedure_entry.get().strip() or "NO PROCESS NAME SPECIFIED"
+        bg_color = self.bg_color or 'lightgreen'
+        self.header_frame.config(bg=bg_color)  # Update the background of the entire header frame
+        self.header_label.config(text=process_name, bg=bg_color)  # Update the text and its background
+
 
     def create_bottom_controls(self):
         bottom_frame = tk.Frame(self.root)
@@ -227,6 +266,39 @@ class FileLoaderApp:
         self.file_count_label.pack(side='left', padx=5, pady=5)
 
         self.update_file_count()  # Initial count of the files
+
+        # CPU Usage Graph Frame
+        cpu_graph_frame = tk.Frame(bottom_frame, width=260, height=60)  # Increased width for clarity
+        cpu_graph_frame.pack(side='right', padx=5, pady=5)
+
+        # Adding the label "CPU USAGE" above the graph
+        cpu_usage_label = tk.Label(cpu_graph_frame, text="CPU USAGE", font=("Arial", 10, "bold"))
+        cpu_usage_label.pack(side='top', pady=2)
+
+        self.create_cpu_graph(cpu_graph_frame)
+
+    def create_cpu_graph(self, frame):
+        """Create the CPU usage graph."""
+        self.fig, self.ax = plt.subplots(figsize=(3, 1.5), dpi=100)  # Adjust size for better clarity
+        self.ax.set_ylim(0, 100)
+        self.ax.set_xlim(0, 60)
+        self.ax.set_xticks([])
+        self.ax.set_yticks([0, 50, 100])
+        self.ax.set_ylabel('CPU %')
+        self.cpu_line, = self.ax.plot(self.cpu_usage_data, color='blue')
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=frame)
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
+
+    def update_cpu_usage(self):
+        """Update the CPU usage graph every second."""
+        while self.app_running:
+            cpu_usage = psutil.cpu_percent(interval=1)
+            self.cpu_usage_data.append(cpu_usage)
+            self.cpu_usage_data.pop(0)
+            self.cpu_line.set_ydata(self.cpu_usage_data)
+            self.canvas.draw()
+            time.sleep(1)
 
     def toggle_auth(self, value):
         if value == "Windows Authentication":
@@ -322,16 +394,18 @@ class FileLoaderApp:
                 self.logging_active = False
                 self.start_logging_button.config(text="Start Logging")
                 messagebox.showinfo("Process Stopped", "The process is being stopped. The application will close once the current process is finished.")
-                # Start a thread to monitor the process and close the app when done
                 threading.Thread(target=self.wait_for_process_to_end_and_exit, daemon=True).start()
             else:  # No, exit without stopping
+                self.app_running = False  # Signal threads to stop
                 self.root.quit()
         else:
+            self.app_running = False  # Signal threads to stop
             self.root.quit()
 
     def wait_for_process_to_end_and_exit(self):
-        while self.logging_active:  # Wait until the process is fully stopped
-            time.sleep(1)  # Check every second
+        while self.logging_active:
+            time.sleep(1)  # Wait until the process is fully stopped
+        self.app_running = False  # Signal threads to stop
         self.root.quit()  # Close the application after stopping
 
     def update_file_count(self):
@@ -347,7 +421,7 @@ class FileLoaderApp:
 
     def monitor_file_count(self):
         """Background thread to monitor and update the file count in real-time."""
-        while True:
+        while self.app_running:
             input_path = self.input_path_entry.get()
             if os.path.exists(input_path):
                 new_file_count = len(os.listdir(input_path))
@@ -435,20 +509,26 @@ class FileLoaderApp:
         self.rejected_log_console.see(tk.END)
 
     def save_config(self):
-        config = {
-            "input_path": self.input_path_entry.get(),
-            "output_path": self.output_path_entry.get(),
-            "server_url": self.server_url_entry.get(),
-            "database_name": self.database_name_entry.get(),
-            "stored_procedure": self.stored_procedure_entry.get(),
-            "auth_type": self.auth_type.get(),
-            "username": self.username_entry.get(),
-            "password": self.password_entry.get(),
-            "batch_size": self.batch_size,
-            "check_box_states": self.check_box_manager.get_checkbox_states()
-        }
-        with open('config.json', 'w') as config_file:
-            json.dump(config, config_file, indent=4)
+            config = {
+                "input_path": self.input_path_entry.get(),
+                "output_path": self.output_path_entry.get(),
+                "server_url": self.server_url_entry.get(),
+                "database_name": self.database_name_entry.get(),
+                "stored_procedure": self.stored_procedure_entry.get(),
+                "auth_type": self.auth_type.get(),
+                "username": self.username_entry.get(),
+                "password": self.password_entry.get(),
+                "batch_size": self.batch_size,
+                "process_name": self.process_name_entry.get(),
+                "bg_color": self.bg_color,
+                "check_box_states": self.check_box_manager.get_checkbox_states()
+            }
+            with open('config.json', 'w') as config_file:
+                json.dump(config, config_file, indent=4)
+            self.log("Configuration saved successfully.")
+            self.update_process_display()  # Apply changes immediately after saving
+
+
 
     def load_config(self):
         if os.path.exists('config.json'):
@@ -464,9 +544,12 @@ class FileLoaderApp:
                 self.password_entry.insert(0, config.get("password", ""))
                 self.batch_size = config.get("batch_size", 1000)
                 self.batch_size_entry.insert(0, str(self.batch_size))
+                self.process_name_entry.insert(0, config.get("process_name", ""))
+                self.bg_color = config.get("bg_color", None)
                 self.check_box_manager.set_checkbox_states(config.get("check_box_states", {}))
                 self.toggle_auth(self.auth_type.get())
                 self.update_file_count()  # Update file count on load
+                self.update_process_display()  # Update process display
                 self.log("Configuration loaded.")
         else:
             self.log("No configuration file found. Using default settings.")
@@ -564,4 +647,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = FileLoaderApp(root)
     root.mainloop()
-    
