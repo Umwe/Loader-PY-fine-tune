@@ -1,0 +1,18 @@
+Authentication type changed to Windows Authentication.
+Configuration loaded.
+Logging started.
+System started at 2024-08-09 14:47:26.392594
+Batch size to be processed: 10 out of 163 files.
+2024-08-09 14:47:26.487852 FILE: PGW-NYREPG01_20240802111104_16399_PC - Copy (10).txt STATUS: ALREADY EXISTS (1Aug  9 2024  9:34AM)
+-------------------------------------------------------------
+Next file in 1 seconds...
+2024-08-09 14:47:31.590246 FILE: PGW-NYREPG01_20240802111104_16399_PC - Copy (100).txt STATUS: ALREADY EXISTS (1Aug  9 2024  9:34AM)
+-------------------------------------------------------------
+Next file in 1 seconds...
+2024-08-09 14:47:36.737947 FILE: PGW-NYREPG01_20240802111104_16399_PC - Copy (101).txt STATUS: ALREADY EXISTS (1Aug  9 2024  9:34AM)
+-------------------------------------------------------------
+Next file in 1 seconds...
+2024-08-09 14:47:41.919968 FILE: PGW-NYREPG01_20240802111104_16399_PC - Copy (102).txt STATUS: ALREADY EXISTS (1Aug  9 2024  9:34AM)
+-------------------------------------------------------------
+Next file in 2 seconds...
+

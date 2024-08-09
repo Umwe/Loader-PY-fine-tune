@@ -3,7 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import json
 import os
 import threading
-import time  # Make sure to import the time module
+import time
 from datetime import datetime
 from CheckBoxManager import CheckBoxManager
 from file_processing import process_files
@@ -88,7 +88,7 @@ class FileLoaderApp:
         # Main Log Console with Scrollbars
         main_console_frame = tk.Frame(main_sub_tab)
         main_console_frame.pack(expand=True, fill='both', padx=10, pady=10)
-        self.log_console = tk.Text(main_console_frame, height=20, state='disabled', wrap='none')
+        self.log_console = tk.Text(main_console_frame, height=20, state='normal', wrap='none')
         self.log_console.pack(side='left', expand=True, fill='both')
 
         main_v_scrollbar = tk.Scrollbar(main_console_frame, command=self.log_console.yview)
@@ -99,10 +99,14 @@ class FileLoaderApp:
         main_h_scrollbar.pack(side='bottom', fill='x')
         self.log_console.config(xscrollcommand=main_h_scrollbar.set)
 
+        # Print Button for Main Console
+        self.print_main_button = ttk.Button(main_console_frame, text="Print", command=self.print_main_console)
+        self.print_main_button.pack(side='right', padx=10, pady=5)
+
         # Rejected Log Console with Scrollbars
         rejected_console_frame = tk.Frame(rejected_sub_tab)
         rejected_console_frame.pack(expand=True, fill='both', padx=10, pady=10)
-        self.rejected_log_console = tk.Text(rejected_console_frame, height=20, state='disabled', wrap='none')
+        self.rejected_log_console = tk.Text(rejected_console_frame, height=20, state='normal', wrap='none')
         self.rejected_log_console.pack(side='left', expand=True, fill='both')
 
         rejected_v_scrollbar = tk.Scrollbar(rejected_console_frame, command=self.rejected_log_console.yview)
@@ -113,6 +117,10 @@ class FileLoaderApp:
         rejected_h_scrollbar.pack(side='bottom', fill='x')
         self.rejected_log_console.config(xscrollcommand=rejected_h_scrollbar.set)
 
+        # Print Button for Rejected Console
+        self.print_rejected_button = ttk.Button(rejected_console_frame, text="Print", command=self.print_rejected_console)
+        self.print_rejected_button.pack(side='right', padx=10, pady=5)
+
         # Clear Log and Start Logging Buttons
         buttons_frame = tk.Frame(main_sub_tab)
         buttons_frame.pack(fill='x', padx=10, pady=5)
@@ -122,6 +130,25 @@ class FileLoaderApp:
 
         self.start_logging_button = ttk.Button(buttons_frame, text="Start Logging", command=self.toggle_logging)
         self.start_logging_button.pack(side='left', padx=5)
+
+        # Search and Navigation Controls placed just under "Clear Log" and "Start Logging" buttons
+        search_frame = tk.Frame(main_sub_tab)
+        search_frame.pack(fill='x', padx=10, pady=5)
+
+        self.search_entry = ttk.Entry(search_frame, width=30)
+        self.search_entry.pack(side='left', padx=5)
+
+        self.search_button = ttk.Button(search_frame, text="Search", command=self.search_main_console)
+        self.search_button.pack(side='left', padx=5)
+
+        self.search_count_label = ttk.Label(search_frame, text="Matches: 0")
+        self.search_count_label.pack(side='left', padx=5)
+
+        self.prev_button = ttk.Button(search_frame, text="Up", command=lambda: self.navigate_matches(self.log_console, direction="prev"))
+        self.prev_button.pack(side='left', padx=5)
+
+        self.next_button = ttk.Button(search_frame, text="Down", command=lambda: self.navigate_matches(self.log_console, direction="next"))
+        self.next_button.pack(side='left', padx=5)
 
     def create_config_paths_widgets(self):
         ttk.Label(self.config_paths_tab, text="Input Path:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -444,7 +471,97 @@ class FileLoaderApp:
         else:
             self.log("No configuration file found. Using default settings.")
 
+    def print_main_console(self):
+        """Save the contents of the main log console to a file and notify the user."""
+        self.save_console_content(self.log_console, "Main Log")
+
+    def print_rejected_console(self):
+        """Save the contents of the rejected log console to a file and notify the user."""
+        self.save_console_content(self.rejected_log_console, "Rejected Log")
+
+    def save_console_content(self, console, log_type):
+        """Save the content of a given console to a file using Save As dialog."""
+        log_content = console.get(1.0, tk.END)
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            title=f"Save {log_type}",
+            initialfile=f"{log_type}.txt"
+        )
+        if file_path:
+            with open(file_path, 'w') as file:
+                file.write(log_content)
+            messagebox.showinfo("Print Log", f"{log_type} has been saved to {file_path}. You can print it manually.")
+
+    def search_main_console(self):
+        """Search for the keyword in the main console and highlight matches."""
+        keyword = self.search_entry.get()
+        self.highlight_text(self.log_console, keyword)
+        count = self.count_matches(self.log_console, keyword)
+        self.search_count_label.config(text=f"Matches: {count}")
+        if count > 0:
+            self.navigate_matches(self.log_console, direction="next")  # Navigate to the first match
+
+    def search_rejected_console(self):
+        """Search for the keyword in the rejected console and highlight matches."""
+        keyword = self.search_entry.get()
+        self.highlight_text(self.rejected_log_console, keyword)
+        count = self.count_matches(self.rejected_log_console, keyword)
+        self.search_count_label.config(text=f"Matches: {count}")
+        if count > 0:
+            self.navigate_matches(self.rejected_log_console, direction="next")  # Navigate to the first match
+
+    def highlight_text(self, console, keyword):
+        """Highlight all occurrences of the keyword in the specified console."""
+        console.tag_remove('highlight', '1.0', tk.END)  # Remove previous highlights
+        if keyword:
+            start_pos = '1.0'
+            while True:
+                start_pos = console.search(keyword, start_pos, stopindex=tk.END)
+                if not start_pos:
+                    break
+                end_pos = f"{start_pos}+{len(keyword)}c"
+                console.tag_add('highlight', start_pos, end_pos)
+                start_pos = end_pos
+            console.tag_config('highlight', background='yellow', foreground='black')
+
+    def count_matches(self, console, keyword):
+        """Count the total number of matches for the keyword in the specified console."""
+        count = 0
+        if keyword:
+            start_pos = '1.0'
+            while True:
+                start_pos = console.search(keyword, start_pos, stopindex=tk.END)
+                if not start_pos:
+                    break
+                end_pos = f"{start_pos}+{len(keyword)}c"
+                count += 1
+                start_pos = end_pos
+        return count
+
+    def navigate_matches(self, console, direction="next"):
+        """Navigate to the next or previous highlighted match."""
+        if direction == "next":
+            try:
+                current = console.index(tk.INSERT)
+                next_pos = console.tag_nextrange('highlight', current)
+                if next_pos:
+                    console.mark_set(tk.INSERT, next_pos[0])
+                    console.see(tk.INSERT)
+            except Exception as e:
+                messagebox.showinfo("Navigation Error", str(e))
+        elif direction == "prev":
+            try:
+                current = console.index(tk.INSERT)
+                prev_pos = console.tag_prevrange('highlight', current)
+                if prev_pos:
+                    console.mark_set(tk.INSERT, prev_pos[0])
+                    console.see(tk.INSERT)
+            except Exception as e:
+                messagebox.showinfo("Navigation Error", str(e))
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = FileLoaderApp(root)
     root.mainloop()
+    

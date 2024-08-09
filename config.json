@@ -9,7 +9,7 @@
     "password": "",
     "batch_size": 10,
     "check_box_states": {
-        "load_tmp_files": false,
+        "load_tmp_files": true,
         "delete_tmp_extension": false,
         "delete_processed_files": false
     }
